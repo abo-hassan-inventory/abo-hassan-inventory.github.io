@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:inventory_project/core/fonts/textTheme.dart';
 import 'package:inventory_project/features/admin/data/data_source/admin_remote_data_source.dart';
 import 'package:inventory_project/features/admin/data/repo/admin_repository_impl.dart';
@@ -27,11 +28,10 @@ import 'features/admin/presentation/state manegment/res/admin_res_bloc.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await dotenv.load(fileName: '.env');
   await Supabase.initialize(
-    url: 'https://csotdcmvxijfvfbctudm.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNzb3RkY212eGlqZnZmYmN0dWRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzkwMDkyODgsImV4cCI6MjA1NDU4NTI4OH0.eV9T8Ak5fVnxPcwOGkuDj_A8my-RSOELnS9mJ9RfluQ',
-  );
+      url: dotenv.env['supabaseurl']!,
+      anonKey: dotenv.env["supabaseannonkey"]!);
   runApp(MyApp());
 }
 
