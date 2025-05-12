@@ -46,6 +46,7 @@ dependencies:
   flutter_animate: ^4.5.2
   fl_chart: ^0.70.2
   flutter_dotenv: ^5.1.0
+  dio: ^5.8.0+1
 
 dev_dependencies:
   flutter_test:

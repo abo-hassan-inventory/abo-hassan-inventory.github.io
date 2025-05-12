@@ -1,8 +1,10 @@
 // ignore_for_file: unnecessary_type_check
 
 import 'package:dartz/dartz.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:inventory_project/features/admin/domain/entiti/admin_inventory_entity.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:dio/dio.dart';
 
 import '../../../../core/failures/failures.dart';
 import '../../domain/entiti/message_entity.dart';
@@ -66,6 +68,85 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     } catch (e) {
       print("AuthRemoteDataSource.getUserData: Error fetching user data - $e");
       throw Exception("Error fetching user data: $e");
+    }
+  }
+
+  // here we call the end function in the supabase to get all the orders
+  Future<List<Map<String, dynamic>>> getall_user_reservation() async {
+    print("start getting all the orders .....");
+    try {
+      final dioClient = Dio();
+      final uri = dotenv.env["adminResEdge"];
+      print("Making Dio request to: $uri");
+
+      final response = await dioClient.get(uri!);
+      print("Dio Response status: ${response.statusCode}");
+
+      if (response.statusCode != 200) {
+        print("Error: HTTP ${response.statusCode}");
+        throw RemoteDataException(
+          'Function returned HTTP ${response.statusCode}',
+        );
+      }
+
+      print("Processing Dio response data...");
+      final dynamic data = response.data;
+      print("Response data type: ${data.runtimeType}");
+
+      if (data is! List) {
+        print("Error: Response data is not a List");
+        throw RemoteDataException(
+          'Invalid payload: expected List, got ${data.runtimeType}',
+        );
+      }
+
+      print("Converting response to List<Map>...");
+      final result = data.map<Map<String, dynamic>>((item) {
+        if (item is Map) {
+          // Validate and clean the data
+          final Map<String, dynamic> cleanedItem = {};
+
+          // Ensure required fields exist with default values
+          cleanedItem['order_id'] = item['order_id']?.toString() ?? 'unknown';
+          cleanedItem['client_id'] = item['client_id']?.toString();
+          cleanedItem['order_date'] = item['order_date']?.toString();
+          cleanedItem['user_name'] =
+              item['user_name']?.toString() ?? 'Unknown User';
+
+          // Handle items array
+          if (item['items'] is List) {
+            cleanedItem['items'] = (item['items'] as List).map((it) {
+              if (it is Map) {
+                return {
+                  'id': it['id']?.toString(),
+                  'name': it['name']?.toString() ?? 'Unknown Item',
+                  'quantity': (it['quantity'] as num?)?.toInt() ?? 0,
+                };
+              }
+              return {
+                'id': null,
+                'name': 'Invalid Item',
+                'quantity': 0,
+              };
+            }).toList();
+          } else {
+            cleanedItem['items'] = [];
+          }
+
+          return cleanedItem;
+        } else {
+          print("Error: Invalid item type: ${item.runtimeType}");
+          throw RemoteDataException(
+            'Invalid list element: expected Map, got ${item.runtimeType}',
+          );
+        }
+      }).toList();
+
+      print("Successfully processed ${result.length} items");
+      return result;
+    } catch (e) {
+      print("Error in getAllUsersDataDio: $e");
+      throw RemoteDataException('Failed to fetch user data: ${e.toString()}');
     }
   }
 

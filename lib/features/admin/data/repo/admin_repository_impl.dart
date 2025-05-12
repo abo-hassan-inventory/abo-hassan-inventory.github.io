@@ -57,59 +57,43 @@ class AdminRepositoryImpl implements AdminRepository {
       return Left(Failure(e.toString()));
     }
   }
+  // here is the methode that gets all the orders but was rendring in the user side
+  // i will change it to get the orders in the backend side by using endfunction in the supabase
 
   @override
   Future<Either<Failure, List<AdminOrderDisplayEntity>>> getAllOrders() async {
     try {
-      // أ) نجيب كل الطلبات
-      final ordersData = await remoteDataSource.getAllOrders();
+      print("Starting getAllOrders in repository...");
+      final rawList = await remoteDataSource.getall_user_reservation();
+      print("Received ${rawList.length} items from data source");
 
-      final List<AdminOrderDisplayEntity> result = [];
-
-      for (final orderMap in ordersData) {
-        final orderId = orderMap['id'] as String;
-        final clientId = orderMap['client_id'] as String?;
-        final orderDateStr = orderMap['order_date'] as String?;
-        final orderDate =
-            orderDateStr != null ? DateTime.parse(orderDateStr) : null;
-
-        // ب) جيب اسم المستخدم
-        String userName = "Unknown User";
-        if (clientId != null) {
-          print("the id is =========================<<<<< $clientId");
-          final name = await remoteDataSource.getUserName(clientId);
-          print(" the user name is =====================<<<<< $name");
-          userName = name ?? "Unknown User";
-        }
-
-        // ج) جيب عناصر الطلب
-        final itemsData = await remoteDataSource.getOrderItems(orderId);
-
-        final items = itemsData.map((itemMap) {
-          final itemId = itemMap['id'] as String?;
-          final quantity = itemMap['quantity'] as int;
-          final itemName = itemMap['item_name'] as String; // العمود اللي ضفته
-
-          return AdminInventoryEntity(
-            id: itemId,
-            name: itemName,
-            quantity: quantity,
-          );
-        }).toList();
-
-        // د) بناء الـ Entity النهائي
-        final orderEntity = AdminOrderDisplayEntity(
-          orderId: orderId,
-          clientId: clientId,
-          orderDate: orderDate,
-          userName: userName,
-          items: items,
+      final users = rawList.map((map) {
+        print("Processing order: ${map['order_id']}");
+        return AdminOrderDisplayEntity(
+          orderId: map['order_id']?.toString() ?? 'unknown',
+          clientId: map['client_id']?.toString(),
+          orderDate: map['order_date'] != null
+              ? DateTime.tryParse(map['order_date'].toString())
+              : null,
+          userName: map['user_name']?.toString() ?? 'Unknown User',
+          items: (map['items'] as List<dynamic>?)?.map((it) {
+                return AdminInventoryEntity(
+                  id: it['id']?.toString(),
+                  name: it['name']?.toString() ?? 'Unknown Item',
+                  quantity: (it['quantity'] as num?)?.toInt() ?? 0,
+                );
+              }).toList() ??
+              [],
         );
-        result.add(orderEntity);
-      }
+      }).toList();
 
-      return Right(result);
+      print("Successfully processed ${users.length} orders");
+      return Right(users);
+    } on RemoteDataException catch (e) {
+      print("RemoteDataException in getAllOrders: ${e.message}");
+      return Left(Failure(e.message));
     } catch (e) {
+      print("Unexpected error in getAllOrders: $e");
       return Left(Failure(e.toString()));
     }
   }
@@ -187,6 +171,7 @@ class AdminRepositoryImpl implements AdminRepository {
     }
   }
 
+// here is the
   @override
   Future<Either<Failure, List<UserOrdersSummaryEntity>>>
       getAllUsersOrdersSummary() async {
